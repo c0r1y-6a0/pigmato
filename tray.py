@@ -28,12 +28,19 @@ def _make_icon(hex_color: str, size: int = 64) -> QIcon:
     return QIcon(px)
 
 
-_ICONS = {
-    State.IDLE:    _make_icon("#888888"),
-    State.RUNNING: _make_icon("#E74C3C"),
-    State.WARNING: _make_icon("#E67E22"),
-    State.BREAK:   _make_icon("#27AE60"),
-}
+_ICONS: dict | None = None
+
+
+def _get_icons() -> dict:
+    global _ICONS
+    if _ICONS is None:
+        _ICONS = {
+            State.IDLE:    _make_icon("#888888"),
+            State.RUNNING: _make_icon("#E74C3C"),
+            State.WARNING: _make_icon("#E67E22"),
+            State.BREAK:   _make_icon("#27AE60"),
+        }
+    return _ICONS
 
 
 # ------------------------------------------------------------------ #
@@ -48,7 +55,7 @@ class TrayIcon(QSystemTrayIcon):
         monitor: SessionMonitor,
         parent=None,
     ):
-        super().__init__(_ICONS[State.IDLE], parent)
+        super().__init__(_get_icons()[State.IDLE], parent)
         self._timer = timer
         self._storage = storage
         self._popup: PopupWindow | None = None
@@ -110,7 +117,7 @@ class TrayIcon(QSystemTrayIcon):
     # ------------------------------------------------------------------ #
 
     def _on_state_changed(self, state: State) -> None:
-        self.setIcon(_ICONS[state])
+        self.setIcon(_get_icons()[state])
         labels = {
             State.IDLE:    "空闲",
             State.RUNNING: f"进行中：{self._timer.topic}",
