@@ -1,4 +1,5 @@
 import ctypes
+from datetime import datetime
 from enum import Enum, auto
 
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal
@@ -28,6 +29,7 @@ class PomodoroTimer(QObject):
         self._topic = ""
         self._remaining = 0
         self._cycle_count = 0
+        self._start_time: datetime | None = None
 
         self._qtimer = QTimer(self)
         self._qtimer.setInterval(1000)
@@ -57,18 +59,21 @@ class PomodoroTimer(QObject):
         """Start a new Pomodoro, stopping whatever is running."""
         self._qtimer.stop()
         self._topic = topic.strip()
+        self._start_time = datetime.now()
         self._remaining = self._storage.config.work_minutes * 60
         self._set_state(State.RUNNING)
         self._qtimer.start()
 
     def stop(self) -> None:
-        """Manually cancel the current Pomodoro or break."""
+        """Manually cancel the current Pomodoro or break (not logged)."""
         self._qtimer.stop()
+        self._start_time = None
         self._set_state(State.IDLE)
 
     def skip_lock_and_break(self) -> None:
-        """User pressed 'skip' in the warning window — skip lock, start break."""
+        """User pressed 'skip' in the warning window — log session, skip lock, start break."""
         self._qtimer.stop()
+        self._log_session()
         self._start_break()
 
     # ------------------------------------------------------------------ #
@@ -79,6 +84,7 @@ class PomodoroTimer(QObject):
         """User manually locked the screen — treat as Pomodoro end."""
         if self._state in (State.RUNNING, State.WARNING):
             self._qtimer.stop()
+            self._log_session()
             self._cycle_count += 1
             # Screen is already locked; skip the lock step, go straight to break
             self._start_break()
@@ -92,6 +98,11 @@ class PomodoroTimer(QObject):
     # ------------------------------------------------------------------ #
     # Internal
     # ------------------------------------------------------------------ #
+
+    def _log_session(self) -> None:
+        if self._start_time is not None:
+            self._storage.log_session(self._topic, self._start_time, datetime.now())
+            self._start_time = None
 
     def _start_break(self) -> None:
         cfg = self._storage.config
@@ -115,6 +126,7 @@ class PomodoroTimer(QObject):
 
         elif self._state == State.WARNING and self._remaining <= 0:
             self._qtimer.stop()
+            self._log_session()
             self._cycle_count += 1
             ctypes.windll.user32.LockWorkStation()
             self._start_break()

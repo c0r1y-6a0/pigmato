@@ -6,6 +6,7 @@ import startup
 from session_monitor import SessionMonitor
 from storage import Storage
 from timer import PomodoroTimer, State
+from ui.export import ExportDialog
 from ui.popup import PopupWindow
 from ui.settings import SettingsDialog
 from ui.warning import WarningWindow
@@ -204,6 +205,7 @@ class TrayIcon(QSystemTrayIcon):
             menu.addSeparator()
 
         menu.addAction("设置…", self._open_settings)
+        menu.addAction("导出日志…", self._export_log)
         menu.addSeparator()
 
         exit_action = menu.addAction("退出")
@@ -225,6 +227,10 @@ class TrayIcon(QSystemTrayIcon):
             startup.enable,
             startup.disable,
         )
+        dlg.exec()
+
+    def _export_log(self) -> None:
+        dlg = ExportDialog(self._storage)
         dlg.exec()
 
     @staticmethod
